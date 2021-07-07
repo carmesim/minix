@@ -96,6 +96,12 @@ int do_noquantum(message *m_ptr)
 	}
 
 	rmp = &schedproc[proc_nr_n];
+
+    // Não alterar prioridade de processos de usuário
+    if (rmp->priority == USER_Q){
+        return OK;
+    }
+
 	if (rmp->priority < MIN_USER_Q) {
 		rmp->priority += 1; /* lower priority */
 	}
@@ -169,6 +175,7 @@ int do_start_scheduling(message *m_ptr)
 	 * is currently only one scheduler scheduling the whole system, this
 	 * value is local and we assert that the parent endpoint is valid */
 	if (rmp->endpoint == rmp->parent) {
+        // Processos de usuário!
 		/* We have a special case here for init, which is the first
 		   process scheduled, and the parent of itself. */
 		rmp->priority   = USER_Q;
@@ -192,6 +199,7 @@ int do_start_scheduling(message *m_ptr)
 		/* We have a special case here for system processes, for which
 		 * quanum and priority are set explicitly rather than inherited 
 		 * from the parent */
+        // Processos de sistema!
 		rmp->priority   = rmp->max_priority;
 		rmp->time_slice = m_ptr->m_lsys_sched_scheduling_start.quantum;
 		break;
@@ -273,6 +281,10 @@ int do_nice(message *m_ptr)
 	if (new_q >= NR_SCHED_QUEUES) {
 		return EINVAL;
 	}
+
+	if (rmp->priority == USER_Q) {
+        return OK;
+    }
 
 	/* Store old values, in case we need to roll back the changes */
 	old_q     = rmp->priority;
@@ -357,6 +369,11 @@ void balance_queues(void)
 
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
 		if (rmp->flags & IN_USE) {
+
+            if (rmp->priority == USER_Q) {
+                continue;
+            }
+
 			if (rmp->priority > rmp->max_priority) {
 				rmp->priority -= 1; /* increase priority */
 				schedule_process_local(rmp);
