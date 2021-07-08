@@ -39,6 +39,9 @@
 #include "spinlock.h"
 #include "arch_proto.h"
 
+#include <stdlib.h>
+#include <time.h>
+
 #include <minix/syslib.h>
 
 /* Scheduling and message passing functions */
@@ -1779,6 +1782,13 @@ void dequeue(struct proc *rp)
 #endif
 }
 
+int random(int max) {
+    srand(time(NULL));
+
+    return rand() % max + 1;
+}
+
+
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
@@ -1790,25 +1800,85 @@ static struct proc * pick_proc(void)
  *
  * This function always uses the run queues of the local cpu!
  */
+
+  // Quantidade de processos prontos em cada fila
+  int processes_ready[7] = { 0 };
+  int tickets_in_every_queue[7] = { 0 };
+
+  // Quantidade total de tíquetes distribuídos
+  int num_tickets = 0;
+
+  // Tíquete escolhido (sorte grande)
+  int chosen_ticket, min_ticket = 32768, min_ticket_queue;
+
+  // Usado durante cálculo do menor tíquete
+  int ticket;
+
   register struct proc *rp;			/* process to run */
   struct proc **rdy_head;
   int q;				/* iterate over queues */
 
-  /* Check each of the scheduling queues for ready processes. The number of
-   * queues is defined in proc.h, and priorities are set in the task table.
-   * If there are no processes ready to run, return NULL.
-   */
   rdy_head = get_cpulocal_var(run_q_head);
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
+  for (q=0; q < NR_SCHED_QUEUES; q++) {
+    if (q == 7) {
+        // Pular todo o espaço de usuário
+        // Usar round-robin padrão apenas para processos de sistema e processos em IDLE
+        q += 8;
+    }
 	if(!(rp = rdy_head[q])) {
 		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
 		continue;
 	}
+
 	assert(proc_is_runnable(rp));
 	if (priv(rp)->s_flags & BILLABLE)	 	
 		get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
 	return rp;
   }
+
+  // Fazer distribuição de pesos
+
+  // Checando quantidade de processos executáveis em cada lista
+  for (int i = 0; i <= NR_TASKS + NR_PROCS; i++) {
+      // Pode dar erro
+      register struct proc * process = proc[i];
+      if (process->p_priority <= 14 && process->p_priority >= 7) {
+          const int priority_queue = process->p_priority;
+          // Processo é de usuário!
+          if(proc_is_runnable(process)) {
+              processes_ready[7-priority_queue];
+          }
+      }
+  }
+
+  // Soma dos tíquetes distribuídos
+  for (q = 7; q < 15; q++) {
+      ticket = (16-q) * processes_ready[7-q];
+      tickets_in_every_queue[7-q] = ticket;
+      tickets += ticket;
+  }
+
+  chosen_ticket = random(tickets);
+
+  for (q = 7; q < 15; q++) {
+      ticket = tickets_in_every_queue[7-q];
+      if (chosen_ticket < ticket) {
+          if (ticket < min_ticket) {
+              // min_ticket_queue será a fila escolhida ao final do for
+              min_ticket = ticket;
+              min_ticket_queue = q;
+          }
+      }
+  }
+
+
+  if ((rp = rdy_head[min_ticket_queue]) && proc_is_runnable(rp)) {
+      if (priv(rp)->s_flags & BILLABLE) {
+            get_cpulocal_var(bill_ptr) = rp;
+      }
+      return rp;
+  }
+
   return NULL;
 }
 
