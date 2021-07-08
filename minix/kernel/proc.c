@@ -1782,7 +1782,7 @@ void dequeue(struct proc *rp)
 #endif
 }
 
-int random(int max) {
+int rand_num(int max) {
     srand(time(NULL));
 
     return rand() % max + 1;
@@ -1806,10 +1806,10 @@ static struct proc * pick_proc(void)
   int tickets_in_every_queue[7] = { 0 };
 
   // Quantidade total de tíquetes distribuídos
-  int num_tickets = 0;
+  int tickets = 0;
 
   // Tíquete escolhido (sorte grande)
-  int chosen_ticket, min_ticket = 32768, min_ticket_queue;
+  int chosen_ticket, acc_sum = 0, min_ticket_queue = 7;
 
   // Usado durante cálculo do menor tíquete
   int ticket;
@@ -1837,37 +1837,36 @@ static struct proc * pick_proc(void)
   }
 
   // Fazer distribuição de pesos
-
+  /*
   // Checando quantidade de processos executáveis em cada lista
   for (int i = 0; i <= NR_TASKS + NR_PROCS; i++) {
       // Pode dar erro
-      register struct proc * process = proc[i];
-      if (process->p_priority <= 14 && process->p_priority >= 7) {
-          const int priority_queue = process->p_priority;
+      register struct proc process = proc[i];
+      if (process.p_priority <= 14 && process.p_priority >= 7) {
+          const int priority_queue = process.p_priority;
           // Processo é de usuário!
-          if(proc_is_runnable(process)) {
-              processes_ready[7-priority_queue];
+          if(rts_f_is_runnable(process.p_rts_flags)) {
+              processes_ready[7-priority_queue]++;
           }
       }
   }
+  */
 
   // Soma dos tíquetes distribuídos
   for (q = 7; q < 15; q++) {
-      ticket = (16-q) * processes_ready[7-q];
+      ticket = (16-q);
       tickets_in_every_queue[7-q] = ticket;
       tickets += ticket;
   }
 
-  chosen_ticket = random(tickets);
+  chosen_ticket = rand_num(tickets);
 
   for (q = 7; q < 15; q++) {
       ticket = tickets_in_every_queue[7-q];
-      if (chosen_ticket < ticket) {
-          if (ticket < min_ticket) {
-              // min_ticket_queue será a fila escolhida ao final do for
-              min_ticket = ticket;
-              min_ticket_queue = q;
-          }
+      acc_sum += ticket;
+      if (chosen_ticket < acc_sum) {
+          min_ticket_queue = q; // fila sorteada
+          break;
       }
   }
 
