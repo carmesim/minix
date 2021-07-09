@@ -39,10 +39,14 @@
 #include "spinlock.h"
 #include "arch_proto.h"
 
-#include <stdlib.h>
-#include <time.h>
+#include <sys/types.h>
 
 #include <minix/syslib.h>
+
+#define	RAND_MAX	0x7fffffff
+
+static u_long next = 1; // utilizado em rand_c
+
 
 /* Scheduling and message passing functions */
 static void idle(void);
@@ -1782,10 +1786,15 @@ void dequeue(struct proc *rp)
 #endif
 }
 
-int rand_num(int max) {
-    srand(time(NULL));
+/*===========================================================================*
+ *		    GERAÇÃO DE NÚMEROS (PSEUDO)ALEATÓRIOS
+ *===========================================================================*/
 
-    return rand() % max + 1;
+int
+rand_c(void)
+{
+	/* LINTED integer overflow */
+	return (int)((next = next * 1103515245 + 12345) % ((u_long)RAND_MAX + 1));
 }
 
 
@@ -1836,8 +1845,8 @@ static struct proc * pick_proc(void)
 	return rp;
   }
 
+
   // Fazer distribuição de pesos
-  /*
   // Checando quantidade de processos executáveis em cada lista
   for (int i = 0; i <= NR_TASKS + NR_PROCS; i++) {
       // Pode dar erro
@@ -1850,7 +1859,6 @@ static struct proc * pick_proc(void)
           }
       }
   }
-  */
 
   // Soma dos tíquetes distribuídos
   for (q = 7; q < 15; q++) {
@@ -1859,12 +1867,13 @@ static struct proc * pick_proc(void)
       tickets += ticket;
   }
 
-  chosen_ticket = rand_num(tickets);
+  chosen_ticket = rand_c() % tickets + 1;
+  //printf("sorteado:%d\n", chosen_ticket);
 
   for (q = 7; q < 15; q++) {
       ticket = tickets_in_every_queue[7-q];
       acc_sum += ticket;
-      if (chosen_ticket < acc_sum) {
+      if (chosen_ticket <= acc_sum) {
           min_ticket_queue = q; // fila sorteada
           break;
       }
