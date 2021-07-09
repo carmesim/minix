@@ -1862,7 +1862,7 @@ static struct proc * pick_proc(void)
 
   // Soma dos tíquetes distribuídos
   for (q = 7; q < 15; q++) {
-      ticket = (16-q);
+      ticket = (16-q) * processes_ready[7-q];
       tickets_in_every_queue[7-q] = ticket;
       tickets += ticket;
   }
