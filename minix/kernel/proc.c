@@ -1849,7 +1849,6 @@ static struct proc * pick_proc(void)
   // Fazer distribuição de pesos
   // Checando quantidade de processos executáveis em cada lista
   for (int i = 0; i <= NR_TASKS + NR_PROCS; i++) {
-      // Pode dar erro
       register struct proc process = proc[i];
       if (process.p_priority <= 14 && process.p_priority >= 7) {
           const int priority_queue = process.p_priority;
